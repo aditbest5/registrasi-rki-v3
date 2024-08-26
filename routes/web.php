@@ -84,7 +84,7 @@ if (config('app.env') === 'production') {
             $id_puskop = Session::get('id_puskop');
             $id_primkop = Session::get('id_primkop');
             $list_inkop =  DB::table('tbl_koperasi')->join('tbl_pengurus', 'tbl_pengurus.id_koperasi', '=', 'tbl_koperasi.id')
-            ->where('id_tingkatan_koperasi', '=', 1)->get();
+                ->where('id_tingkatan_koperasi', '=', 1)->get();
             return view('dashboard.data.koperasi.inkop.index', compact('id', 'username', 'password', 'tingkatan', 'list_inkop'));
         })->name('view-inkop');
 
@@ -295,17 +295,46 @@ if (config('app.env') === 'production') {
         return view('registrasi.registrasi-anggota');
     })->name('anggota.primkop');
 
-    // Routing registrasi koperasi melalui RKI
-    Route::get('/pendaftaran/koperasi/{nis}', function ($nis) {
+    // Routing registrasi inkop melalui RKI
+    Route::get('/pendaftaran/inkop/{nis}', function ($nis) {
 
-        $koperasi = DB::table('tbl_koperasi')->where('nis', $nis)->where('approval', 0)->first();
-        $pengurus = DB::table('tbl_pengurus')->where('id_koperasi', $koperasi->id)->get();
+        $koperasi = DB::table('tbl_koperasi')->where('nis', $nis)->where('approval', 0)->where('id_tingkatan_koperasi', 1)->first();
         if (!$koperasi) {
             return view('error');
         }
-        return view('dashboard.registrasi.registrasi-koperasi', compact('nis', 'koperasi', 'pengurus'));
+        $list_puskop = DB::table('tbl_koperasi')->join("tbl_pengurus", "tbl_pengurus.id_koperasi", "=", "tbl_koperasi.id")->where('id_inkop', $koperasi->id)->where('approval', 0)->get();
+        $pengurus = DB::table('tbl_pengurus')->where('id_koperasi', $koperasi->id)->get();
+
+        // return dd($list_puskop);
+        return view('dashboard.registrasi.registrasi-inkop', compact('nis', 'koperasi', 'pengurus', 'list_puskop'));
     })->name('pendaftaran.koperasi');
 
+    // Routing registrasi puskop melalui inkop
+    Route::get('/pendaftaran/puskop/{nis}', function ($nis) {
+
+        $koperasi = DB::table('tbl_koperasi')->where('nis', $nis)->where('approval', 0)->where('id_tingkatan_koperasi', 2)->first();
+        if (!$koperasi) {
+            return view('error');
+        }
+        $list_primkop = DB::table('tbl_koperasi')->join("tbl_pengurus", "tbl_pengurus.id_koperasi", "=", "tbl_koperasi.id")->where('id_puskop', $koperasi->id)->where('approval', 0)->get();
+        $pengurus = DB::table('tbl_pengurus')->where('id_koperasi', $koperasi->id)->get();
+
+        // return dd($list_primkop);
+        return view('dashboard.registrasi.registrasi-puskop', compact('nis', 'koperasi', 'pengurus', 'list_primkop'));
+    })->name('pendaftaran.koperasi');
+    // Routing registrasi puskop melalui inkop
+    Route::get('/pendaftaran/primkop/{nis}', function ($nis) {
+
+        $koperasi = DB::table('tbl_koperasi')->where('nis', $nis)->where('approval', 0)->where('id_tingkatan_koperasi', 3)->first();
+        if (!$koperasi) {
+            return view('error');
+        }
+        $list_anggota = DB::table('tbl_koperasi')->join("tbl_anggota", "tbl_anggota.id_koperasi", "=", "tbl_koperasi.id")->where('tbl_anggota.id_koperasi', $koperasi->id)->where('tbl_koperasi.approval', 0)->get();
+        $pengurus = DB::table('tbl_pengurus')->where('id_koperasi', $koperasi->id)->get();
+
+        // return dd($list_anggota);
+        return view('dashboard.registrasi.registrasi-primkop', compact('nis', 'koperasi', 'pengurus', 'list_anggota'));
+    })->name('pendaftaran.koperasi');
     // Routing registrasi koperasi melalui koperasi diatasnya
     Route::get('/registrasi/koperasi/', function () {
         return view('registrasi.registrasi-koperasi');

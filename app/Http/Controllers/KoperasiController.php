@@ -54,18 +54,16 @@ class KoperasiController extends Controller
 
             // Simpan logo
             $logo_base64 = $request->logo;
-            $logo_extension = 'png';
+            $logo_extension = 'jpeg';
             $logo_name = time() . '_logo.' . $logo_extension;
             $logo_folder = '/koperasi/logo/';
             $logo_path = public_path() . $logo_folder . $logo_name;
             // $logo_path = public_path().'/images' public_path($logo_folder . $logo_name);
             file_put_contents($logo_path, base64_decode($logo_base64));
 
-
-
             // Simpan NPWP
             $npwp_base64 = $request->image_npwp;
-            $npwp_extension = 'png';
+            $npwp_extension = 'jpeg';
             $npwp_name = time() . '_npwp.' . $npwp_extension;
             $npwp_folder = '/koperasi/npwp/';
             // $npwp_path = public_path($npwp_folder . $npwp_name);
@@ -148,6 +146,8 @@ class KoperasiController extends Controller
             $dokumenSPKUMUrl = $dokumen_spkum_folder . $dokumen_spkum_name;
             $dokumenSKDomisiliUrl = $dokumen_sk_domisili_folder . $dokumen_sk_domisili_name;
             $dokumenSertifikatUrl = $dokumen_sertifikat_folder . $dokumen_sertifikat_name;
+            $username = $request->singkatan_koperasi  . str_pad(rand(0, 2), 2, '0', STR_PAD_LEFT);
+            $password = bin2hex(openssl_random_pseudo_bytes(10));
 
             $koperasiData = [
                 'nama_koperasi' => $request->nama_koperasi,
@@ -157,6 +157,8 @@ class KoperasiController extends Controller
                 'hp_wa' => $request->no_wa,
                 'hp_fax' => $request->no_fax,
                 'url_website' => $request->web,
+                'username' => $username,
+                'password' => $password,
                 'bidang_koperasi' => $request->bidang_koperasi,
                 'alamat' => $request->alamat,
                 'id_kelurahan' => $request->kelurahan,
@@ -199,7 +201,16 @@ class KoperasiController extends Controller
 
             $pengurus = DB::table('tbl_pengurus')->insert($request->pengurusData);
             $pengawas = DB::table('tbl_pengawas')->insert($request->pengawasData);
+            $details = [
+                'title' => 'Link Registrasi',
+                'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
+                'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
+                'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
+                'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
+                'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
+            ];
 
+            Mail::to($request->email)->send(new LinkMail($details));
             if (!$pengurus || !$pengawas) {
                 throw new \Exception('Gagal Tambah Anggota!');
             }
@@ -240,79 +251,76 @@ class KoperasiController extends Controller
         }
     }
 
-    public function insert_koperasi(Request $request, $id_koperasi, $id_tingkat)
-    {
 
+
+    public function insert_data_koperasi(Request $request, $id_koperasi, $id_tingkat)
+    {
         DB::beginTransaction();
 
-        // Konversi Base64 ke file dan simpan di public path
         try {
             $request->validate([
-                'namaKoperasi' => 'required',
-                'password' => 'required',
-                'username' => 'required',
-                'nomerKetua' => 'required',
-                'namaKetua' => 'required',
-                'email' => 'required',
+                'koperasiData' => 'required|array',
                 'nis' => 'required',
-                'confirmPassword' => 'required',
             ]);
-            if ($request->password != $request->confirmPassword) {
-                return response()->json([
-                    'response_code' => "01",
-                    'response_message' => 'Password Tidak Sama!',
-                ], 200);
-            }
-            $nis = $request->nis . '-' . str_pad(rand(0, 999), 3, '0', STR_PAD_LEFT);
-            if ($id_tingkat == 2) {
-                $koperasiData = [
-                    'nama_koperasi' => $request->namaKoperasi,
-                    'password' => $request->password,
-                    'username' => $request->username,
-                    'id_inkop' => $id_koperasi,
-                    'id_tingkatan_koperasi' => $id_tingkat,
-                    'nis' => $nis
-                ];
-            } else if ($id_tingkat == 3) {
-                $koperasiData = [
-                    'nama_koperasi' => $request->namaKoperasi,
-                    'password' => $request->password,
-                    'username' => $request->username,
-                    'id_puskop' => $id_koperasi,
-                    'id_tingkatan_koperasi' => $id_tingkat,
-                    'nis' => $nis
-                ];
-            }
-            $details = [
-                'title' => 'Link Registrasi',
-                'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
-                'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
-                'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
-                'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
-                'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
-            ];
-            Mail::to($request->email)->send(new LinkMail($details));
-            $koperasiId = DB::table('tbl_koperasi')->insertGetId($koperasiData);
-            if (!$koperasiId) {
-                throw new \Exception('Gagal Tambah Koperasi!');
-            }
-            $pengurusData = [
-                'nama_pengurus' => $request->namaKetua,
-                'nomor_hp' => $request->nomerKetua,
-                'jabatan' => 'ketua',
-                'id_koperasi' => (int)$koperasiId,
-            ];
 
-            $pengurus = DB::table('tbl_pengurus')->insert($pengurusData);
 
-            if (!$pengurus) {
-                throw new \Exception('Gagal Tambah Ketua!');
+            foreach ($request->koperasiData as $koperasi) {
+                $nis = $request->nis . '-' . str_pad(rand(0, 999), 3, '0', STR_PAD_LEFT);
+                $otp = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                if($id_tingkat == '2'){
+                    $koperasiData = [
+                        'nama_koperasi' => $koperasi['nama_koperasi'],
+                        'email_koperasi' => $koperasi['email_koperasi'],
+                        'id_inkop' => $id_koperasi,
+                        'id_tingkatan_koperasi' => $id_tingkat,
+                        'nis' => $nis,
+                        'otp' => $otp,
+                    ];
+                } else if($id_tingkat=='3'){
+                    $koperasiData = [
+                        'nama_koperasi' => $koperasi['nama_koperasi'],
+                        'email_koperasi' => $koperasi['email_koperasi'],
+                        'id_puskop' => $id_koperasi,
+                        'id_tingkatan_koperasi' => $id_tingkat,
+                        'nis' => $nis,
+                        'otp' => $otp,
+                    ];
+                }
+
+                $details = [
+                    'title' => 'Link Registrasi',
+                    'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
+                    'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
+                    'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
+                    'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
+                    'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
+                ];
+
+                Mail::to($koperasi['email_koperasi'])->send(new LinkMail($details));
+                $koperasiId = DB::table('tbl_koperasi')->insertGetId($koperasiData);
+                if (!$koperasiId) {
+                    throw new \Exception('Gagal Tambah Koperasi!');
+                }
+
+                $pengurusData = [
+                    'nama_pengurus' => $koperasi['nama_ketua'],
+                    'nomor_hp' => $koperasi['nomor_ketua'],
+                    'jabatan' => 'ketua',
+                    'id_koperasi' => (int)$koperasiId,
+                ];
+
+                $pengurus = DB::table('tbl_pengurus')->insert($pengurusData);
+
+                if (!$pengurus) {
+                    throw new \Exception('Gagal Tambah Ketua!');
+                }
             }
+
             DB::commit();
 
             return response()->json([
                 'response_code' => "00",
-                'response_message' => 'Sukses simpan data!',
+                'response_message' => "Data koperasi berhasil ditambahkan",
             ], 200);
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -322,6 +330,61 @@ class KoperasiController extends Controller
             ], 500);
         }
     }
+    public function insert_data_anggota(Request $request, $id_koperasi)
+    {
+        DB::beginTransaction();
+
+        try {
+            $request->validate([
+                'anggotaData' => 'required|array',
+                'nis' => 'required',
+            ]);
+
+
+            foreach ($request->anggotaData as $anggota) {
+                $nis = $request->nis . '-' . str_pad(rand(0, 999), 3, '0', STR_PAD_LEFT);
+                $otp = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                    $anggotaData = [
+                        'nama_lengkap' => $anggota['nama_anggota'],
+                        'email' => $anggota['email'],
+                        'nomor_hp' => $anggota['nomor_hp'],
+                        'no_anggota' => $anggota['no_anggota'],
+                        'id_koperasi' => $id_koperasi,
+                        'nis' => $nis,
+                        'otp' => $otp,
+                    ];
+
+                $details = [
+                    'title' => 'Link Registrasi',
+                    'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
+                    'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
+                    'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
+                    'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
+                    'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
+                ];
+
+                Mail::to($anggota['email'])->send(new LinkMail($details));
+                $anggotaId = DB::table('tbl_anggota')->insertGetId($anggotaData);
+                if (!$anggotaId) {
+                    throw new \Exception('Gagal Tambah Anggota!');
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'response_code' => "00",
+                'response_message' => "Data anggota berhasil ditambahkan",
+            ], 200);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json([
+                'response_code' => "01",
+                'response_message' => $th->getMessage(),
+            ], 500);
+        }
+    }
+
     public function insert_inkop(Request $request)
     {
 
@@ -338,10 +401,10 @@ class KoperasiController extends Controller
             $otp = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
             $koperasiData = [
                 'nama_koperasi' => $request->namaKoperasi,
-                'id_inkop' => $request->id_koperasi,
                 'id_tingkatan_koperasi' => 1,
                 'email_koperasi' => $request->email,
                 'nis' => $nis,
+                'otp' => $otp,
             ];
             $details = [
                 'title' => 'Link Registrasi',
