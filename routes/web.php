@@ -291,9 +291,13 @@ if (config('app.env') === 'production') {
     });
 
     // Routing anggota melalui primkopnya
-    Route::get('/pendaftaran/anggota/primkop/', function () {
-        return view('registrasi.registrasi-anggota');
-    })->name('anggota.primkop');
+    Route::get('/pendaftaran/anggota/{nis}', function ($nis) {
+        $anggota = DB::table('tbl_anggota')->where('nis', $nis)->where('approval',0)->first();
+        if(!$anggota){
+            return view('error');
+        }
+        return view('dashboard.registrasi.registrasi-anggota', compact('anggota', 'nis'));
+    })->name('pendaftaran.anggota');
 
     // Routing registrasi inkop melalui RKI
     Route::get('/pendaftaran/inkop/{nis}', function ($nis) {
@@ -307,7 +311,7 @@ if (config('app.env') === 'production') {
 
         // return dd($list_puskop);
         return view('dashboard.registrasi.registrasi-inkop', compact('nis', 'koperasi', 'pengurus', 'list_puskop'));
-    })->name('pendaftaran.koperasi');
+    })->name('pendaftaran.inkop');
 
     // Routing registrasi puskop melalui inkop
     Route::get('/pendaftaran/puskop/{nis}', function ($nis) {
@@ -321,7 +325,7 @@ if (config('app.env') === 'production') {
 
         // return dd($list_primkop);
         return view('dashboard.registrasi.registrasi-puskop', compact('nis', 'koperasi', 'pengurus', 'list_primkop'));
-    })->name('pendaftaran.koperasi');
+    })->name('pendaftaran.puskop');
     // Routing registrasi puskop melalui inkop
     Route::get('/pendaftaran/primkop/{nis}', function ($nis) {
 
@@ -334,11 +338,7 @@ if (config('app.env') === 'production') {
 
         // return dd($list_anggota);
         return view('dashboard.registrasi.registrasi-primkop', compact('nis', 'koperasi', 'pengurus', 'list_anggota'));
-    })->name('pendaftaran.koperasi');
-    // Routing registrasi koperasi melalui koperasi diatasnya
-    Route::get('/registrasi/koperasi/', function () {
-        return view('registrasi.registrasi-koperasi');
-    })->name('registrasi.koperasi');
+    })->name('pendaftaran.primkop');
 
 
     // =========================================================================================================================================================

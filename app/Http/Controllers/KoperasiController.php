@@ -330,60 +330,7 @@ class KoperasiController extends Controller
             ], 500);
         }
     }
-    public function insert_data_anggota(Request $request, $id_koperasi)
-    {
-        DB::beginTransaction();
 
-        try {
-            $request->validate([
-                'anggotaData' => 'required|array',
-                'nis' => 'required',
-            ]);
-
-
-            foreach ($request->anggotaData as $anggota) {
-                $nis = $request->nis . '-' . str_pad(rand(0, 999), 3, '0', STR_PAD_LEFT);
-                $otp = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-                    $anggotaData = [
-                        'nama_lengkap' => $anggota['nama_anggota'],
-                        'email' => $anggota['email'],
-                        'nomor_hp' => $anggota['nomor_hp'],
-                        'no_anggota' => $anggota['no_anggota'],
-                        'id_koperasi' => $id_koperasi,
-                        'nis' => $nis,
-                        'otp' => $otp,
-                    ];
-
-                $details = [
-                    'title' => 'Link Registrasi',
-                    'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
-                    'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
-                    'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
-                    'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
-                    'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
-                ];
-
-                Mail::to($anggota['email'])->send(new LinkMail($details));
-                $anggotaId = DB::table('tbl_anggota')->insertGetId($anggotaData);
-                if (!$anggotaId) {
-                    throw new \Exception('Gagal Tambah Anggota!');
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'response_code' => "00",
-                'response_message' => "Data anggota berhasil ditambahkan",
-            ], 200);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            return response()->json([
-                'response_code' => "01",
-                'response_message' => $th->getMessage(),
-            ], 500);
-        }
-    }
 
     public function insert_inkop(Request $request)
     {

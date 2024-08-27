@@ -78,15 +78,68 @@ class AnggotaController extends Controller
             ], 500);
         }
     }
+    public function insert_data_anggota(Request $request, $id_koperasi)
+    {
+        DB::beginTransaction();
 
-    public function verifikasi_nis($nis)
+        try {
+            $request->validate([
+                'anggotaData' => 'required|array',
+                'nis' => 'required',
+            ]);
+
+
+            foreach ($request->anggotaData as $anggota) {
+                $nis = $request->nis . '-' . str_pad(rand(0, 999), 3, '0', STR_PAD_LEFT);
+                $otp = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                    $anggotaData = [
+                        'nama_lengkap' => $anggota['nama_anggota'],
+                        'email' => $anggota['email'],
+                        'nomor_hp' => $anggota['nomor_hp'],
+                        'no_anggota' => $anggota['no_anggota'],
+                        'id_koperasi' => $id_koperasi,
+                        'nis' => $nis,
+                        'otp' => $otp,
+                    ];
+
+                $details = [
+                    'title' => 'Link Registrasi',
+                    'content' => 'Selamat! Akun koperasi anda berhasil terverifikasi',
+                    'info' => 'Berikut link untuk melengkapi data koperasi Anda pada tautan dibawah ini:',
+                    'link' => 'https://registrasiv2.rkicoop.co.id/registrasi/koperasi/',
+                    'logo_rki' => 'https://rkicoop.co.id/assets/imgs/Logo.png',
+                    'logo_background' => 'https://rkicoop.co.id/assets/imgs/pattern_3.svg',
+                ];
+
+                Mail::to($anggota['email'])->send(new LinkMail($details));
+                $anggotaId = DB::table('tbl_anggota')->insertGetId($anggotaData);
+                if (!$anggotaId) {
+                    throw new \Exception('Gagal Tambah Anggota!');
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'response_code' => "00",
+                'response_message' => "Data anggota berhasil ditambahkan",
+            ], 200);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json([
+                'response_code' => "01",
+                'response_message' => $th->getMessage(),
+            ], 500);
+        }
+    }
+    public function verifikasi_otp($otp, $nis)
     {
         try {
-            $anggota = DB::table('tbl_anggota')->where('nis', $nis)->where('approval', 0)->first();
+            $anggota = DB::table('tbl_anggota')->where('nis', $nis)->where('otp', $otp)->where('approval', 0)->first();
             if (!$anggota) {
                 return response()->json([
                     'response_code' => "01",
-                    'response_message' => 'Kode NIS Salah',
+                    'response_message' => 'Kode OTP Salah',
                 ], 400);
             }
             return response()->json([
@@ -129,7 +182,6 @@ class AnggotaController extends Controller
                 'alamat' => 'required',
                 'nomor_hp' => 'required',
                 'email' => 'required|email',
-                'id_koperasi' => 'required'
             ]);
 
             // Convert Base64 to Image
@@ -154,9 +206,16 @@ class AnggotaController extends Controller
             // simpan url
             $selfieUrl = $selfie_folder . $selfie_name;
             $ktpUrl = $ktp_folder . $ktp_name;
+            $nama_lengkap = explode(' ', $request->nama_lengkap);
+            $dua_kata_pertama = implode(' ', array_slice($nama_lengkap, 0, 2));
+            $username = $dua_kata_pertama  . str_pad(rand(0, 2), 2, '0', STR_PAD_LEFT);
+            $password = bin2hex(openssl_random_pseudo_bytes(10));
+
             $anggotaData = [
                 'no_anggota' => $request->no_anggota,
                 'nik' => $request->nik,
+                'username' => $username,
+                'password' => $password,
                 'nama_lengkap' => $request->nama_lengkap,
                 'tempat_lahir' => $request->tempat_lahir,
                 'tanggal_lahir' => $request->tanggal_lahir,
@@ -180,10 +239,9 @@ class AnggotaController extends Controller
                 'selfie' => $selfieUrl,
                 'ktp' => $ktpUrl,
                 'approval' => 1,
-                'id_koperasi' => $request->id_koperasi,
             ];
             // Insert into tbl_anggota
-            $update_anggota = DB::table('tbl_anggota')->where('nis', $request->nis)->update($anggotaData);
+            $update_anggota = DB::table('tbl_anggota')->where('id', $id_anggota)->update($anggotaData);
             if (!$update_anggota) {
                 return response()->json([
                     'response_code' => "01",

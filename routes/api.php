@@ -36,13 +36,13 @@ Route::prefix('register')->group(function () {
     Route::post('/anggota/update-insert-anggota/{id_anggota}', [AnggotaController::class, 'update_insert_anggota']);
     Route::post('/koperasi/insert-koperasi/{id_koperasi}/{tingkat}', [KoperasiController::class, 'insert_koperasi']);
     Route::post('/data/koperasi/{id_koperasi}/{tingkat}', [KoperasiController::class, 'insert_data_koperasi']);
-    Route::post('/data/anggota/{id_koperasi}', [KoperasiController::class, 'insert_data_anggota']);
+    Route::post('/data/anggota/{id_koperasi}', [AnggotaController::class, 'insert_data_anggota']);
 
     Route::post('/koperasi/insert-induk', [KoperasiController::class, 'insert_inkop']);
 })->name('register');
 
 Route::get('/koperasi/verifikasi-otp/{otp}/{nis}', [KoperasiController::class, 'verifikasi_otp']);
-Route::get('/anggota/verifikasi-nis/{nis}', [AnggotaController::class, 'verifikasi_nis']);
+Route::get('/anggota/verifikasi-otp/{otp}/{nis}', [AnggotaController::class, 'verifikasi_otp']);
 
 Route::prefix('wilayah')->group(function () {
     Route::get('/provinsi', [WilayahController::class, 'province']);
